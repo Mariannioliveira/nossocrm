@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createStaticAdminClient } from '@/lib/supabase/server';
 import { isAllowedOrigin } from '@/lib/security/sameOrigin';
+import { runSchemaMigration } from '@/lib/installer/migrations';
 
 function json<T>(body: T, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -37,10 +38,40 @@ export async function POST(req: Request) {
 
   const admin = createStaticAdminClient();
 
-  // Só permite setup se ainda não inicializado.
+  // Verifica se já foi inicializado. Se falhar, as migrations ainda não rodaram.
   const { data: isInitialized, error: initError } = await admin.rpc('is_instance_initialized');
-  if (initError) return json({ error: initError.message }, 500);
-  if (isInitialized) return json({ error: 'Instance already initialized' }, 403);
+
+  if (initError) {
+    // Banco não configurado — tenta rodar migrations automaticamente se DATABASE_URL estiver definida.
+    const dbUrl = process.env.DATABASE_URL;
+
+    if (!dbUrl) {
+      return json(
+        {
+          error:
+            'As migrações do banco ainda não foram aplicadas. Adicione a variável DATABASE_URL no Coolify (Supabase → Settings → Database → Connection String → Session mode) e tente novamente.',
+          code: 'MIGRATIONS_REQUIRED',
+        },
+        500
+      );
+    }
+
+    try {
+      console.log('[setup-instance] Aplicando migrations...');
+      await runSchemaMigration(dbUrl);
+      console.log('[setup-instance] Migrations aplicadas com sucesso.');
+    } catch (migrationErr) {
+      const msg = migrationErr instanceof Error ? migrationErr.message : String(migrationErr);
+      return json({ error: `Falha ao aplicar migrações: ${msg}` }, 500);
+    }
+
+    // Re-verifica após aplicar migrations.
+    const { data: reinit, error: reinitError } = await admin.rpc('is_instance_initialized');
+    if (reinitError) return json({ error: reinitError.message }, 500);
+    if (reinit) return json({ error: 'Instance already initialized' }, 403);
+  } else if (isInitialized) {
+    return json({ error: 'Instance already initialized' }, 403);
+  }
 
   const { data: organization, error: orgError } = await admin
     .from('organizations')
