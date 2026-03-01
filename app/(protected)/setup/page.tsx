@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getErrorMessage } from '@/lib/utils/errorUtils'
 import { useAuth } from '@/context/AuthContext'
-import { Loader2, Building2, User, Lock, ArrowRight } from 'lucide-react'
+import { Loader2, Building2, User, Lock, ArrowRight, Database, ExternalLink } from 'lucide-react'
 
 /**
  * Componente React `SetupPage`.
@@ -18,6 +18,7 @@ export default function SetupPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [checkingInit, setCheckingInit] = useState(true)
 
   const router = useRouter()
@@ -101,7 +102,10 @@ export default function SetupPage() {
       })
 
       const data = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(data?.error || `Erro no setup (HTTP ${res.status})`)
+      if (!res.ok) {
+        if (data?.code) setErrorCode(data.code)
+        throw new Error(data?.error || `Erro no setup (HTTP ${res.status})`)
+      }
 
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -115,6 +119,8 @@ export default function SetupPage() {
     } catch (err) {
       console.error('Setup error:', err)
       setError(getErrorMessage(err))
+      setLoading(false)
+      return
     } finally {
       setLoading(false)
     }
@@ -267,7 +273,39 @@ export default function SetupPage() {
               {passwordsMatch && <p className="mt-1 text-xs text-green-500">✓ Senhas coincidem</p>}
             </div>
 
-            {error && (
+            {error && errorCode === 'MIGRATIONS_REQUIRED' && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 text-sm space-y-3"
+              >
+                <div className="flex items-start gap-2">
+                  <Database className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold mb-1">DATABASE_URL não configurada</p>
+                    <p className="text-xs leading-relaxed">
+                      Adicione a variável <code className="bg-amber-100 dark:bg-amber-900/50 px-1 rounded font-mono">DATABASE_URL</code> no Coolify para que o setup aplique as migrações automaticamente.
+                    </p>
+                  </div>
+                </div>
+                <ol className="text-xs space-y-1 pl-2 list-decimal list-inside leading-relaxed">
+                  <li>No painel do Supabase → <strong>Settings → Database</strong></li>
+                  <li>Copie a <strong>Connection String</strong> no modo <strong>Session</strong> (porta 5432)</li>
+                  <li>Adicione no Coolify como <code className="bg-amber-100 dark:bg-amber-900/50 px-1 rounded font-mono">DATABASE_URL</code></li>
+                  <li>Reinicie o container e tente novamente</li>
+                </ol>
+                <a
+                  href="https://supabase.com/dashboard/project/_/settings/database"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                >
+                  Abrir configurações do Supabase <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+
+            {error && errorCode !== 'MIGRATIONS_REQUIRED' && (
               <div
                 role="alert"
                 aria-live="assertive"
