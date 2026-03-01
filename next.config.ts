@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Gera um servidor Node.js standalone para rodar em Docker/Coolify
+  // Inclui apenas os arquivos necessários, reduzindo o tamanho da imagem
+  output: 'standalone',
   // Otimiza imports de bibliotecas com barrel files (index.js que re-exporta tudo)
   // Isso evita carregar módulos não utilizados, reduzindo o bundle em 15-25KB
   // Ref: https://vercel.com/blog/how-we-optimized-package-imports-in-next-js
