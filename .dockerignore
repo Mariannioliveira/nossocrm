@@ -1,0 +1,35 @@
+# ── Controle de versão ───────────────────────────────────────────────
+.git
+.gitignore
+.githooks
+
+# ── Dependências (reinstaladas dentro do Docker) ─────────────────────
+node_modules
+
+# ── Output de build (recriado pelo Docker) ───────────────────────────
+.next
+
+# ── Variáveis de ambiente (injetadas pelo Coolify) ───────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Ferramentas de desenvolvimento ───────────────────────────────────
+.specswarm
+docs
+test
+
+# ── Docker (não copiar para dentro do container) ─────────────────────
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# ── Sistema operacional ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE / Editor ─────────────────────────────────────────────────────
+.vscode
+.idea
+*.swp
+*.swo
